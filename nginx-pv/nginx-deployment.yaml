@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nginx-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /tmp/nginx-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-write-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-write-test
+  template:
+    metadata:
+      labels:
+        app: nginx-write-test
+    spec:
+      #securityContext:
+      # runAsUser: 0       # root เพื่อทดสอบเขียน PV
+      # fsGroup: 0
+      containers:
+        - name: nginx
+          image: nginx:stable
+          volumeMounts:
+            - name: nginx-data
+              mountPath: /usr/share/nginx/html
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - |
+              echo "Hello from Nginx PV!" > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'
+      volumes:
+        - name: nginx-data
+          persistentVolumeClaim:
+            claimName: nginx-pvc
+

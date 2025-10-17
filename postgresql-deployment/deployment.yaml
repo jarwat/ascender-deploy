@@ -1,0 +1,77 @@
+# ==============================
+# 1️⃣ PersistentVolumeClaim
+# ==============================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+
+---
+# ==============================
+# 2️⃣ PostgreSQL Deployment
+# ==============================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: default
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 26          
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: admin
+            - name: POSTGRES_PASSWORD
+              value: passw0rd
+            - name: POSTGRES_DB
+              value: demo
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+
+---
+# ==============================
+# 3️⃣ Service (LoadBalancer)
+# ==============================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-lb
+  namespace: default
+spec:
+  selector:
+    app: postgres
+  type: LoadBalancer
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
